@@ -30,13 +30,13 @@ const OrderTakingHomepage = ({ navigation }) => {
       key: 'coffee',
       icon: 'local-cafe',
       items: [
-        { id: 1, name: 'Iced Americano', price: 59, image: 'https://via.placeholder.com/150x100/FF6B35/FFFFFF?text=Iced+Americano' },
-        { id: 2, name: 'Cloud Americano', price: 75, image: 'https://via.placeholder.com/150x100/FF6B35/FFFFFF?text=Cappuccino' },
-        { id: 3, name: 'Spanish Latte', price: 85, image: 'https://via.placeholder.com/150x100/FF6B35/FFFFFF?text=Latte' },
-        { id: 4, name: 'Caramel Macchiato', price: 45, image: 'https://via.placeholder.com/150x100/FF6B35/FFFFFF?text=Espresso' },
-        { id: 5, name: 'Vanilla Latte', price: 95, image: 'https://via.placeholder.com/150x100/FF6B35/FFFFFF?text=Mocha' },
-        { id: 6, name: 'Iced Strawberry Milk', price: 65, image: 'https://via.placeholder.com/150x100/FF6B35/FFFFFF?text=Cold+Brew' },
-        { id: 7, name: 'Iced Blueberry Milk', price: 110, image: 'https://via.placeholder.com/150x100/FF6B35/FFFFFF?text=Frappuccino' },
+        { id: 1, name: 'Iced Americano', price: 59, image: require('../../assets/app_images/coffee/icedamericano.png') },
+        { id: 2, name: 'Cloud Americano', price: 75, image: require('../../assets/app_images/coffee/cloudamericano.png') },
+        { id: 3, name: 'Spanish Latte', price: 85, image: require('../../assets/app_images/coffee/spanishlatte.png') },
+        { id: 4, name: 'Caramel Macchiato', price: 45, image: require('../../assets/app_images/coffee/caramelmachiatto.png') },
+        { id: 5, name: 'Vanilla Latte', price: 95, image: require('../../assets/app_images/coffee/vanillalatte.png') },
+        { id: 6, name: 'Iced Strawberry Milk', price: 65, image: require('../../assets/app_images/coffee/icedstrawberrymilk.png') },
+        { id: 7, name: 'Iced Blueberry Milk', price: 110, image: require('../../assets/app_images/coffee/icedblueberrymilk.png') },
       ]
     },
     {
@@ -181,13 +181,22 @@ const OrderTakingHomepage = ({ navigation }) => {
 
   const renderMenuItem = ({ item }) => (
     <View style={styles.menuItemCard}>
-      <Image source={{ uri: item.image }} style={styles.itemImage} />
-      <Text style={styles.itemName}>{item.name}</Text>
-      <Text style={styles.itemPrice}>₱{item.price}</Text>
-      
-      <View style={styles.actionContainer}>
+      <View style={styles.imageContainer}>
+        <Image
+          source={typeof item.image === 'string' ? { uri: item.image } : item.image}
+          style={[
+            styles.itemImage,
+            (item.id === 1 || item.id === 2 || item.id === 3 || item.id === 4 || item.id === 5 || item.id === 6 || item.id === 7) && styles.itemImageZoomedOut
+          ]}
+        />
+      </View>
+      <View style={styles.namePriceContainer}>
+        <Text style={styles.itemName}>{item.name}</Text>
+        <Text style={styles.itemPrice}>₱{item.price}</Text>
+      </View>
+      <View style={styles.bottomContainer}>
         <View style={styles.sizeButtons}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
               styles.sizeButton,
               selectedSizes[item.id] === 'M' && styles.sizeButtonSelected
@@ -199,7 +208,7 @@ const OrderTakingHomepage = ({ navigation }) => {
               selectedSizes[item.id] === 'M' && styles.sizeButtonTextSelected
             ]}>M</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
               styles.sizeButton,
               selectedSizes[item.id] === 'L' && styles.sizeButtonSelected
@@ -212,7 +221,6 @@ const OrderTakingHomepage = ({ navigation }) => {
             ]}>L</Text>
           </TouchableOpacity>
         </View>
-        
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => handleAddItem(item)}
@@ -378,28 +386,25 @@ const styles = StyleSheet.create({
   },
   itemImage: {
     width: '100%',
-    height: 70,
+    height: '100%',
     borderRadius: 8,
-    marginBottom: 6,
+    resizeMode: 'cover',
+  },
+  itemImageZoomedOut: {
+    resizeMode: 'contain',
   },
   itemName: {
     fontSize: 12,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 2,
-    textAlign: 'center',
+    flex: 1,
   },
   itemPrice: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#FF6B35',
-    marginBottom: 6,
-    textAlign: 'center',
   },
   addButton: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -411,15 +416,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
-  },
-  actionContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 8,
-    left: 8,
-    right: 8,
   },
   sizeButtons: {
     flexDirection: 'row',
@@ -446,6 +442,25 @@ const styles = StyleSheet.create({
   },
   sizeButtonTextSelected: {
     color: '#fff',
+  },
+  imageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  namePriceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 8,
+    marginBottom: 6,
+  },
+  bottomContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 8,
   },
 });
 
