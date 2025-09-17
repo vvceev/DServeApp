@@ -19,16 +19,7 @@ const AppNavigator = () => {
   const navigationRef = useRef(null);
   const { user, isLoading } = useUser();
 
-  useEffect(() => {
-    if (!isLoading && user && navigationRef.current) {
-      navigationRef.current.navigate('Dashboard');
-    }
-  }, [user, isLoading]);
-
-  if (isLoading) {
-    // Optionally, return a loading screen
-    return null; // Or a loading component
-  }
+  // Removed auto-navigation to Dashboard to ensure login screen shows
 
   return (
     <NavigationContainer ref={navigationRef}>

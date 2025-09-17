@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,57 +7,200 @@ import {
   ScrollView,
   SafeAreaView,
   Dimensions,
-  Platform,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+
+import { Calendar } from 'react-native-calendars';
+import { LineChart } from 'react-native-chart-kit';
+import { useUser } from '../contexts/UserContext';
 
 const { width } = Dimensions.get('window');
 
 const SalesReportScreen = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [timeRange, setTimeRange] = useState('daily');
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const { orders, loadOrders, isLoading } = useUser();
+  const [timeRange, setTimeRange] = useState('weekly');
+  const [selectedDate, setSelectedDate] = useState('');
+  const [filteredOrders, setFilteredOrders] = useState([]);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalSales, setTotalSales] = useState(0);
+  const [bestSellerItems, setBestSellerItems] = useState([]);
 
-  const handleDateChange = (event, date) => {
-    setShowDatePicker(false);
-    if (date) {
-      setSelectedDate(date);
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  useEffect(() => {
+    filterAndCalculateMetrics();
+  }, [orders, timeRange, selectedDate]);
+
+  const filterAndCalculateMetrics = () => {
+    if (!orders || orders.length === 0) {
+      setFilteredOrders([]);
+      setTotalOrders(0);
+      setTotalSales(0);
+      setBestSellerItems([]);
+      return;
+    }
+
+    const now = new Date();
+    let startDate;
+
+    switch (timeRange) {
+      case 'weekly':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+        break;
+      case 'monthly':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        break;
+      case 'year':
+        startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        break;
+      default:
+        startDate = new Date(0);
+    }
+
+    // Filter orders by time range and selected date if any
+    const filtered = orders.filter(order => {
+      const orderDate = new Date(order.date);
+      if (selectedDate) {
+        // Filter by selected date only
+        return orderDate.toISOString().split('T')[0] === selectedDate;
+      } else {
+        // Filter by time range
+        return orderDate >= startDate && orderDate <= now;
+      }
+    });
+
+    setFilteredOrders(filtered);
+
+    // Calculate total orders
+    setTotalOrders(filtered.length);
+
+    // Calculate total sales
+    const salesSum = filtered.reduce((sum, order) => sum + (order.total || 0), 0);
+    setTotalSales(salesSum);
+
+    // Calculate best seller items
+    const itemMap = {};
+    filtered.forEach(order => {
+      order.items.forEach(item => {
+        if (!itemMap[item.name]) {
+          itemMap[item.name] = 0;
+        }
+        itemMap[item.name] += item.quantity;
+      });
+    });
+
+    const sortedItems = Object.entries(itemMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, quantity]) => ({ name, quantity }));
+
+    setBestSellerItems(sortedItems);
+  };
+
+  const generateChartData = () => {
+    if (!filteredOrders || filteredOrders.length === 0) {
+      return {
+        labels: [],
+        datasets: [{ data: [] }]
+      };
+    }
+
+    const now = new Date();
+    let labels = [];
+    let data = [];
+
+    switch (timeRange) {
+      case 'weekly':
+        // Last 7 days
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+          const dateStr = date.toISOString().split('T')[0];
+          const daySales = filteredOrders
+            .filter(order => new Date(order.date).toISOString().split('T')[0] === dateStr)
+            .reduce((sum, order) => sum + (order.total || 0), 0);
+          labels.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+          data.push(daySales);
+        }
+        break;
+      case 'monthly':
+        // Last 30 days
+        for (let i = 29; i >= 0; i--) {
+          const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+          const dateStr = date.toISOString().split('T')[0];
+          const daySales = filteredOrders
+            .filter(order => new Date(order.date).toISOString().split('T')[0] === dateStr)
+            .reduce((sum, order) => sum + (order.total || 0), 0);
+          labels.push(date.getDate().toString());
+          data.push(daySales);
+        }
+        break;
+      case 'year':
+        // Last 12 months
+        for (let i = 11; i >= 0; i--) {
+          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const monthStr = date.toISOString().slice(0, 7); // YYYY-MM
+          const monthSales = filteredOrders
+            .filter(order => new Date(order.date).toISOString().slice(0, 7) === monthStr)
+            .reduce((sum, order) => sum + (order.total || 0), 0);
+          labels.push(date.toLocaleDateString('en-US', { month: 'short' }));
+          data.push(monthSales);
+        }
+        break;
+      default:
+        break;
+    }
+
+    return {
+      labels,
+      datasets: [{
+        data,
+        color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
+        strokeWidth: 2
+      }]
+    };
+  };
+
+  const chartConfig = {
+    backgroundColor: '#f8f9fa',
+    backgroundGradientFrom: '#f8f9fa',
+    backgroundGradientTo: '#f8f9fa',
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(44, 62, 80, ${opacity})`,
+    style: {
+      borderRadius: 16
+    },
+    propsForDots: {
+      r: '6',
+      strokeWidth: '2',
+      stroke: '#3498db'
     }
   };
 
-  const showDatePickerModal = () => {
-    setShowDatePicker(true);
-  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollContainer}>
         <View style={styles.header}>
           <Text style={styles.title}>Sales Report</Text>
-          <Text style={styles.subtitle}>Generate detailed sales reports</Text>
+          <Text style={styles.subtitle}>Generate sales reports</Text>
         </View>
 
-        {/* Date Picker and Time Range Controls */}
+        {/* Time Range Controls */}
         <View style={styles.controlsContainer}>
-          <TouchableOpacity style={styles.dateButton} onPress={showDatePickerModal}>
-            <View style={styles.dateButtonContent}>
-              <Icon name="date-range" size={16} color="white" style={styles.dateIcon} />
-              <Text style={styles.dateButtonText}>
-                {selectedDate.toLocaleDateString()}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
           <View style={styles.timeRangeContainer}>
-            {['daily', 'weekly', 'monthly'].map((range) => (
+            {['weekly', 'monthly', 'year'].map((range) => (
               <TouchableOpacity
                 key={range}
                 style={[
                   styles.rangeButton,
                   timeRange === range && styles.activeRangeButton,
                 ]}
-                onPress={() => setTimeRange(range)}
+                onPress={() => {
+                  setTimeRange(range);
+                  setSelectedDate('');
+                }}
               >
                 <Text
                   style={[
@@ -74,58 +217,93 @@ const SalesReportScreen = () => {
 
         {/* Main Card Container */}
         <View style={styles.mainCard}>
-          {/* Left Side - Chart */}
+          {/* Chart and Calendar Row */}
           <View style={styles.chartSection}>
-            <View style={styles.chartContainer}>
-              <Text style={styles.chartTitle}>Sales Analytics</Text>
-              <View style={styles.chartPlaceholder}>
-                <Text style={styles.chartText}>Line Chart</Text>
-                <Text style={styles.chartSubtitle}>
-                  Showing {timeRange} performance
-                </Text>
+              <View style={styles.chartContainer}>
+                <Text style={styles.chartTitle}>Sales Analytics</Text>
+                {filteredOrders.length === 0 ? (
+                  <View style={styles.chartPlaceholder}>
+                    <Text style={styles.chartText}>No data available</Text>
+                  </View>
+                ) : (
+                  <LineChart
+                    data={generateChartData()}
+                    width={width * 0.55}
+                    height={180}
+                    chartConfig={chartConfig}
+                    bezier
+                    style={styles.chartStyle}
+                    fromZero
+                  />
+                )}
               </View>
+            <View style={styles.calendarContainer}>
+              <Text style={styles.calendarTitle}>Calendar</Text>
+              <Calendar
+                onDayPress={day => setSelectedDate(day.dateString)}
+                markedDates={{
+                  [selectedDate]: { selected: true, selectedColor: '#3498db' }
+                }}
+                theme={{
+                  backgroundColor: '#f8f9fa',
+                  calendarBackground: '#f8f9fa',
+                  textSectionTitleColor: '#2c3e50',
+                  selectedDayBackgroundColor: '#3498db',
+                  selectedDayTextColor: 'white',
+                  todayTextColor: '#3498db',
+                  dayTextColor: '#495057',
+                  textDisabledColor: '#d9e1e8',
+                  dotColor: '#3498db',
+                  selectedDotColor: 'white',
+                  arrowColor: '#3498db',
+                  monthTextColor: '#2c3e50',
+                  indicatorColor: '#3498db',
+                  textDayFontFamily: 'monospace',
+                  textMonthFontFamily: 'monospace',
+                  textDayHeaderFontFamily: 'monospace',
+                  textDayFontWeight: '300',
+                  textMonthFontWeight: 'bold',
+                  textDayHeaderFontWeight: '300',
+                  textDayFontSize: 14,
+                  textMonthFontSize: 16,
+                  textDayHeaderFontSize: 12
+                }}
+              />
             </View>
           </View>
 
           {/* Right Side - Metrics */}
           <View style={styles.metricsSection}>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Total Orders</Text>
-              <Text style={styles.metricValue}>156</Text>
-            </View>
+            <View style={styles.metricsRow}>
+              <View style={styles.rowMetricCard}>
+                <Text style={styles.metricLabel}>Total Orders</Text>
+                <Text style={styles.biggerMetricValue}>{totalOrders}</Text>
+              </View>
 
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Total Sales</Text>
-              <Text style={styles.metricValue}>$11,750</Text>
-            </View>
+              <View style={styles.rowMetricCard}>
+                <Text style={styles.metricLabel}>Total Sales</Text>
+                <Text style={styles.biggerMetricValue}>₱{totalSales.toFixed(2)}</Text>
+              </View>
 
-            <View style={styles.metricCard}>
-              <Text style={styles.metricLabel}>Average Sales</Text>
-              <Text style={styles.metricValue}>$75.32</Text>
-            </View>
-
-            <View style={[styles.metricCard, styles.topItemsCard]}>
-              <Text style={styles.metricLabel}>Top Selling Items</Text>
-              <View style={styles.topItemsList}>
-                <Text style={styles.topItemText}>1. Margherita Pizza</Text>
-                <Text style={styles.topItemText}>2. Caesar Salad</Text>
-                <Text style={styles.topItemText}>3. Grilled Salmon</Text>
-                <Text style={styles.topItemText}>4. Pasta Carbonara</Text>
+              <View style={[styles.rowMetricCard, { flex: 0.15, padding: 5 }]}>
+                <Text style={styles.metricLabel}>Best Seller Items</Text>
+                <View style={styles.topItemsList}>
+                  {bestSellerItems.length === 0 ? (
+                    <Text style={styles.topItemText}>No data</Text>
+                  ) : (
+                    bestSellerItems.map((item, index) => (
+                      <Text key={index} style={styles.topItemText}>
+                        {index + 1}. {item.name} ({item.quantity})
+                      </Text>
+                    ))
+                  )}
+                </View>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Date Picker Modal */}
-        {showDatePicker && (
-          <DateTimePicker
-            value={selectedDate}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleDateChange}
-            maximumDate={new Date()}
-          />
-        )}
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -155,34 +333,12 @@ const styles = StyleSheet.create({
   },
   controlsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 25,
     flexWrap: 'wrap',
   },
-  dateButton: {
-    backgroundColor: '#3498db',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  dateButtonText: {
-    fontSize: 14,
-    color: 'white',
-    fontWeight: '600',
-  },
-  dateButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  dateIcon: {
-    marginRight: 8,
-  },
+
   timeRangeContainer: {
     flexDirection: 'row',
     backgroundColor: '#ecf0f1',
@@ -208,7 +364,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   mainCard: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 20,
@@ -217,15 +373,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 8,
-    minHeight: 400,
+    // Remove minHeight to allow flexible height
   },
   chartSection: {
-    flex: 1.5,
-    marginRight: 15,
+    flexDirection: 'row',
+    height: 200,
   },
   chartContainer: {
     flex: 1,
+    marginRight: 15,
   },
+  calendarContainer: {
+    width: 250,
+  },
+  calendarTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 10,
+  },
+
   chartTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -252,8 +419,14 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   metricsSection: {
-    flex: 1,
-    marginLeft: 15,
+    marginTop: 10,
+    maxHeight: 180,
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   metricCard: {
     backgroundColor: '#f8f9fa',
@@ -265,6 +438,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+  },
+  rowMetricCard: {
+    backgroundColor: '#f8f9fa',
+    padding: 20,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    marginBottom: 0,
+    marginHorizontal: 10,
   },
   topItemsCard: {
     marginBottom: 0,
@@ -280,6 +465,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2c3e50',
   },
+  biggerMetricValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+  },
   topItemsList: {
     marginTop: 5,
   },
@@ -288,6 +478,9 @@ const styles = StyleSheet.create({
     color: '#495057',
     marginBottom: 3,
     lineHeight: 14,
+  },
+  chartStyle: {
+    borderRadius: 16,
   },
 });
 

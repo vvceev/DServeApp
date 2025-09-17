@@ -1,4 +1,6 @@
-# TODO for Adding Picture to OrderTakingHomepage.js
+# TODO: Implement +10 pesos for L size on newMenuItems in OrderTakingHomepage.js
 
-- [x] Update image property for menu item id 1 to use local image require('../../assets/app_images/icedamericano.png')
-- [x] Modify renderMenuItem to handle both string URIs and require() sources for Image component
+- [ ] Add 'isNew: true' flag to Firebase menuItems in fetchMenuItems
+- [ ] Update isSizeApplicable condition in handleAddItem to include item.isNew
+- [ ] Update isSizeApplicable condition in renderMenuItem for displayPrice
+- [ ] Update renderMenuItem to show size buttons for items where item.isNew is true

@@ -62,7 +62,7 @@ const LoginScreen = () => {
         }
 
         // Await createLoginSession if async
-        const session = await createLoginSession(user.id, user.username, user.role);
+        const session = await createLoginSession(user.id, user.username, user.role, password);
 
         console.log('Login successful:', {
           loggedInAs: user.role,

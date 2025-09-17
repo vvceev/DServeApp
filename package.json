@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@dataconnect/generated": "file:src/dataconnect-generated",
     "@expo/metro-runtime": "~5.0.4",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "^8.4.4",
@@ -17,11 +18,21 @@
     "@react-navigation/material-top-tabs": "^7.3.6",
     "@react-navigation/native": "^7.1.17",
     "@react-navigation/stack": "^7.4.7",
+    "axios": "^1.11.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
     "expo": "~53.0.20",
+    "expo-image-picker": "^17.0.7",
     "expo-status-bar": "~2.2.3",
+    "express": "^5.1.0",
+    "firebase": "^12.2.1",
+    "firebase-admin": "^12.0.0",
+    "mysql2": "^3.14.5",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
+    "react-native-calendars": "^1.1313.0",
     "react-native-chart-kit": "^6.12.0",
     "react-native-sqlite-storage": "^6.0.1",
     "react-native-svg": "^15.12.1",
@@ -29,7 +40,22 @@
     "react-native-web": "^0.20.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "@types/react": "~19.0.10",
+    "typescript": "~5.8.3"
   },
-  "private": true
+  "private": true,
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vvceev/DServeApp.git~.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/vvceev/DServeApp.git~/issues"
+  },
+  "homepage": "https://github.com/vvceev/DServeApp.git~#readme"
 }

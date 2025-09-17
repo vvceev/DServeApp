@@ -1,9 +1,16 @@
+// Firebase client SDK
+import { getFirestore, collection, addDoc } from 'firebase/firestore';
+import app from './firebaseConfig';
+
+// Initialize Firebase
+const db = getFirestore(app);
+
 // User database with pre-made accounts
 const users = [
   {
     id: 1,
-    username: 'cashier1',
-    password: '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // bcrypt hash for 'password123'
+    username: 'cashier',
+    password: 'password123', // Plain password for demo; hashed in Firebase database
     role: 'cashier',
     displayName: 'Cashier User',
     createdAt: new Date('2024-01-01'),
@@ -11,8 +18,8 @@ const users = [
   },
   {
     id: 2,
-    username: 'owner1',
-    password: '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // bcrypt hash for 'password123'
+    username: 'owner',
+    password: 'password123', // Plain password for demo; hashed in Firebase database
     role: 'owner',
     displayName: 'Restaurant Owner',
     createdAt: new Date('2024-01-01'),
@@ -20,8 +27,8 @@ const users = [
   },
   {
     id: 3,
-    username: 'admin1',
-    password: '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // bcrypt hash for 'password123'
+    username: 'admin',
+    password: 'password123', // Plain password for demo; hashed in Firebase database
     role: 'admin',
     displayName: 'System Admin',
     createdAt: new Date('2024-01-01'),
@@ -49,32 +56,49 @@ export const getUsersByRole = (role) => {
 // Authentication function
 export const authenticateUser = (username, password) => {
   const user = getUserByUsername(username);
-  if (!user) return null;
-  
-  // In a real app, you'd use bcrypt.compare() here
-  // For demo purposes, we'll just check if password matches the hash
-  // Note: This is simplified for demonstration - use proper bcrypt in production
-  
-  // The hash below is for 'password123'
-  const validPassword = password === 'password123'; // Simplified for demo
-  
+  if (!user) {
+    console.log('User not found:', username);
+    return null;
+  }
+
+  // Since passwords are stored in plain text here, compare directly
+  const validPassword = password === user.password;
+
   return validPassword ? user : null;
 };
 
 // Login tracking
 let loginSessions = [];
 
-export const createLoginSession = (userId, username, role) => {
+export const createLoginSession = async (userId, username, role, password) => {
+  const loginTime = new Date();
+
+  // Save to Firestore userLogs collection
+  try {
+    await addDoc(collection(db, 'userLogs'), {
+      loggedinAs: role,
+      username: username,
+      // Removed password field for security reasons
+      loginTime: loginTime,
+      date: loginTime.toDateString(),
+      time: loginTime.toTimeString()
+    });
+    console.log('Login session saved to Firestore');
+  } catch (error) {
+    console.error('Error saving login session to Firestore:', error);
+  }
+
+  // Keep in-memory for backward compatibility
   const session = {
     id: Date.now(),
     userId,
     username,
     role,
-    loginTime: new Date(),
-    ipAddress: '127.0.0.1', // In real app, get from request
-    userAgent: 'React Native App' // In real app, get from device
+    loginTime,
+    ipAddress: '127.0.0.1',
+    userAgent: 'React Native App'
   };
-  
+
   loginSessions.push(session);
   return session;
 };

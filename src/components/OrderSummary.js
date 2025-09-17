@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,61 +9,76 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 
-const OrderSummary = ({ items, totalAmount, onRemoveItem, onUpdateQuantity, onSaveAndPrint }) => {
-  const [customerName, setCustomerName] = useState('');
-  const [orderType, setOrderType] = useState('dine-in');
-  const [discountPercentage, setDiscountPercentage] = useState(0);
+const OrderSummary = ({ items, subtotal, onRemoveItem, onUpdateQuantity, onSaveAndPrint, orderNumber, onIncrementOrderNumber, customerName: propCustomerName, orderType: propOrderType, orderDate, onClose, isModal = false }) => {
+  const [customerName, setCustomerName] = useState(propCustomerName || '');
+  const [orderType, setOrderType] = useState(propOrderType || 'dine-in');
+  const [currentDate, setCurrentDate] = useState('');
+  const [currentTime, setCurrentTime] = useState('');
 
-  const discountOptions = [
-    { label: '0%', value: 0 },
-    { label: '5%', value: 5 },
-    { label: '10%', value: 10 },
-    { label: '15%', value: 15 },
-    { label: '20%', value: 20 },
-    { label: '25%', value: 25 },
-    { label: '50%', value: 50 },
-  ];
+  useEffect(() => {
+    if (orderDate) {
+      const date = new Date(orderDate);
+      const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+      setCurrentDate(formattedDate);
+      const formattedTime = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+      setCurrentTime(formattedTime);
+    } else {
+      const date = new Date();
+      const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+      setCurrentDate(formattedDate);
 
-  const calculateDiscountAmount = () => {
-    return (totalAmount * discountPercentage) / 100;
-  };
+      // Update time every second
+      const timeInterval = setInterval(() => {
+        const now = new Date();
+        const formattedTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+        setCurrentTime(formattedTime);
+      }, 1000);
+
+      return () => clearInterval(timeInterval);
+    }
+  }, [orderDate]);
 
   const calculateSubtotal = () => {
-    return totalAmount;
+    return subtotal;
   };
 
-  const calculateTotalAfterDiscount = () => {
-    return totalAmount - calculateDiscountAmount();
+  const calculateFinalTotal = () => {
+    return subtotal;
   };
 
-  const renderOrderItem = (item) => (
-    <View key={item.id} style={styles.orderItem}>
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <Text style={styles.itemPrice}>₱{item.price.toFixed(2)} each</Text>
-      </View>
-      <View style={styles.quantityControls}>
+  const renderOrderItem = (item, index) => {
+    const sizeText = item.size ? ` (${item.size === 'M' ? 'Medium' : 'Large'})` : '';
+    const price = item.price ?? 0;
+    const quantity = item.quantity ?? 0;
+    return (
+      <View key={item.id ?? index} style={styles.orderItem}>
+        <View style={styles.itemInfo}>
+          <Text style={styles.itemName}>{item.name}{sizeText}</Text>
+          <Text style={styles.itemPrice}>₱{price.toFixed(2)} each</Text>
+        </View>
+        <View style={styles.quantityControls}>
         <TouchableOpacity
           style={styles.quantityButton}
-          onPress={() => onUpdateQuantity(item.id, item.quantity - 1)}
+          onPress={() => onUpdateQuantity(item.id, quantity - 1)}
         >
           <Text style={styles.quantityButtonText}>-</Text>
         </TouchableOpacity>
-        <Text style={styles.quantityText}>{item.quantity}</Text>
+        <Text style={styles.quantityText}>{quantity}</Text>
         <TouchableOpacity
           style={styles.quantityButton}
-          onPress={() => onUpdateQuantity(item.id, item.quantity + 1)}
+          onPress={() => onUpdateQuantity(item.id, quantity + 1)}
         >
           <Text style={styles.quantityButtonText}>+</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.itemTotal}>
         <Text style={styles.itemTotalText}>
-          ₱{(item.price * item.quantity).toFixed(2)}
+          ₱{(price * quantity).toFixed(2)}
         </Text>
       </View>
     </View>
   );
+  };
 
   return (
     <View style={styles.container}>
@@ -71,7 +86,11 @@ const OrderSummary = ({ items, totalAmount, onRemoveItem, onUpdateQuantity, onSa
       
       {/* Date and Time */}
       <View style={styles.dateContainer}>
-        <Text style={styles.dateLabel}>Date: </Text>
+        <View style={styles.dateTimeRow}>
+          <Text style={styles.dateLabel}>Date: {currentDate}</Text>
+          <Text style={styles.timeLabel}>Time: {currentTime}</Text>
+        </View>
+        <Text style={styles.orderNumberLabel}>No. #{typeof orderNumber === 'string' ? orderNumber.replace(/^#/, '') : (orderNumber || '')}</Text>
       </View>
 
       {/* Order Type Selection */}
@@ -122,50 +141,18 @@ const OrderSummary = ({ items, totalAmount, onRemoveItem, onUpdateQuantity, onSa
 
       {/* Order Items */}
       <ScrollView style={styles.orderList}>
-        {items.length === 0 ? (
+        {!items || items.length === 0 ? (
           <Text style={styles.emptyMessage}>No items added yet</Text>
         ) : (
-          items.map(renderOrderItem)
+          items.map((item, index) => renderOrderItem(item, index))
         )}
       </ScrollView>
-
-      {/* Discount Section */}
-      <View style={styles.discountContainer}>
-        <Text style={styles.sectionLabel}>Discount:</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={discountPercentage}
-            style={styles.discountPicker}
-            onValueChange={(itemValue) => setDiscountPercentage(itemValue)}
-          >
-            {discountOptions.map((option) => (
-              <Picker.Item 
-                key={option.value} 
-                label={option.label} 
-                value={option.value} 
-              />
-            ))}
-          </Picker>
-        </View>
-      </View>
 
       {/* Pricing Summary */}
       <View style={styles.pricingContainer}>
         <View style={styles.pricingRow}>
-          <Text style={styles.pricingLabel}>Subtotal:</Text>
-          <Text style={styles.pricingValue}>₱{calculateSubtotal().toFixed(2)}</Text>
-        </View>
-        
-        {discountPercentage > 0 && (
-          <View style={styles.pricingRow}>
-            <Text style={styles.pricingLabel}>Discount {discountPercentage}%:</Text>
-            <Text style={styles.pricingValue}>-₱{calculateDiscountAmount().toFixed(2)}</Text>
-          </View>
-        )}
-        
-        <View style={styles.pricingRow}>
           <Text style={styles.totalLabel}>TOTAL:</Text>
-          <Text style={styles.totalAmount}>₱{calculateTotalAfterDiscount().toFixed(2)}</Text>
+          <Text style={styles.totalAmount}>₱{calculateFinalTotal().toFixed(2)}</Text>
         </View>
       </View>
 
@@ -173,17 +160,28 @@ const OrderSummary = ({ items, totalAmount, onRemoveItem, onUpdateQuantity, onSa
       <View style={styles.footer}>
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.saveButton, items.length === 0 && styles.saveButtonDisabled]}
-            onPress={() => onSaveAndPrint('save')}
-            disabled={items.length === 0}
+            style={[isModal ? styles.cancelButton : styles.saveButton]}
+            onPress={() => {
+              if (isModal && typeof onClose === 'function') {
+                onClose();
+              } else if (!isModal) {
+                onSaveAndPrint('save', calculateFinalTotal(), customerName, orderType, items, orderNumber);
+                onIncrementOrderNumber();
+              } else {
+                console.log('OrderSummary - Button pressed');
+              }
+            }}
           >
-            <Text style={styles.saveButtonText}>Save Order</Text>
+            <Text style={[isModal ? styles.cancelButtonText : styles.saveButtonText]}>{isModal ? 'Close' : 'Save Order'}</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
-            style={[styles.printButton, items.length === 0 && styles.saveButtonDisabled]}
-            onPress={() => onSaveAndPrint('print')}
-            disabled={items.length === 0}
+            style={[styles.printButton, (!items || items.length === 0) && styles.saveButtonDisabled]}
+            onPress={() => {
+              onSaveAndPrint('print', calculateFinalTotal(), customerName, orderType, items, orderNumber);
+              onIncrementOrderNumber();
+            }}
+            disabled={!items || items.length === 0}
           >
             <Text style={styles.printButtonText}>Print Order</Text>
           </TouchableOpacity>
@@ -208,27 +206,44 @@ const styles = StyleSheet.create({
   dateContainer: {
     marginBottom: 10,
   },
+  dateTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
   dateLabel: {
     fontSize: 14,
     color: '#666',
   },
+  timeLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  orderNumberLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FF6B35',
+    textAlign: 'center',
+  },
   orderTypeContainer: {
     marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   sectionLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 5,
+    marginRight: 10,
   },
   orderTypeButtons: {
     flexDirection: 'row',
     gap: 10,
   },
   orderTypeButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: 20,
     backgroundColor: '#f0f0f0',
     alignItems: 'center',
@@ -246,19 +261,22 @@ const styles = StyleSheet.create({
   },
   customerContainer: {
     marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   customerInput: {
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 3,
     fontSize: 14,
+    flex: 1,
   },
   divider: {
     height: 1,
     backgroundColor: '#eee',
-    marginVertical: 15,
+    marginVertical: 2,
   },
   orderList: {
     flex: 1,
@@ -324,18 +342,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FF6B35',
   },
-  discountContainer: {
-    marginBottom: 15,
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  discountPicker: {
-    height: 40,
-  },
+  // Removed discountContainer, pickerContainer, discountPicker styles
+  // discountContainer: {
+  //   marginBottom: 15,
+  // },
+  // pickerContainer: {
+  //   borderWidth: 1,
+  //   borderColor: '#ddd',
+  //   borderRadius: 8,
+  //   overflow: 'hidden',
+  // },
+  // discountPicker: {
+  //   height: 40,
+  // },
   pricingContainer: {
     marginBottom: 15,
   },
@@ -403,6 +422,18 @@ const styles = StyleSheet.create({
   },
   printButtonText: {
     color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cancelButton: {
+    backgroundColor: '#ccc',
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    flex: 1,
+  },
+  cancelButtonText: {
+    color: '#333',
     fontSize: 16,
     fontWeight: 'bold',
   },
