@@ -8,6 +8,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import * as Print from 'expo-print';
 
 const OrderSummary = ({ items, subtotal, onRemoveItem, onUpdateQuantity, onSaveAndPrint, orderNumber, onIncrementOrderNumber, customerName: propCustomerName, orderType: propOrderType, orderDate, onClose, isModal = false }) => {
   const [customerName, setCustomerName] = useState(propCustomerName || '');
@@ -46,6 +47,81 @@ const OrderSummary = ({ items, subtotal, onRemoveItem, onUpdateQuantity, onSaveA
     return subtotal;
   };
 
+  const printReceipt = async () => {
+    const orderNum = typeof orderNumber === 'string' ? orderNumber.replace(/^#/, '') : (orderNumber || '');
+    const itemsHtml = items.map(item => {
+      const sizeText = item.size ? ` (${item.size === 'M' ? 'Medium' : 'Large'})` : '';
+      const price = item.price ?? 0;
+      const quantity = item.quantity ?? 0;
+      const total = (price * quantity).toFixed(2);
+      return `
+        <tr>
+          <td style="padding: 5px; border-bottom: 1px solid #ddd;">${item.name}${sizeText}</td>
+          <td style="padding: 5px; border-bottom: 1px solid #ddd; text-align: center;">${quantity}</td>
+          <td style="padding: 5px; border-bottom: 1px solid #ddd; text-align: right;">₱${price.toFixed(2)}</td>
+          <td style="padding: 5px; border-bottom: 1px solid #ddd; text-align: right;">₱${total}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const html = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 20px; }
+            .header h1 { margin: 0; color: #FF6B35; }
+            .header p { margin: 5px 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { padding: 8px; text-align: left; }
+            th { background-color: #f0f0f0; font-weight: bold; }
+            .total { font-weight: bold; font-size: 18px; margin-top: 20px; text-align: right; }
+            .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>D'Serve</h1>
+            <p>Order Receipt</p>
+            <p>Order No: #${orderNum}</p>
+            <p>Date: ${currentDate} | Time: ${currentTime}</p>
+            <p>Customer: ${customerName || 'N/A'}</p>
+            <p>Order Type: ${orderType === 'dine-in' ? 'Dine In' : 'Take Out'}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th style="text-align: center;">Qty</th>
+                <th style="text-align: right;">Price</th>
+                <th style="text-align: right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          <div class="total">
+            TOTAL: ₱${calculateFinalTotal().toFixed(2)}
+          </div>
+          <div class="footer">
+            Thank you for your order!
+          </div>
+        </body>
+      </html>
+    `;
+
+    try {
+      await Print.printAsync({ html });
+      if (typeof onClose === 'function') {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error printing receipt:', error);
+      alert('Failed to print receipt. Please try again.');
+    }
+  };
+
   const renderOrderItem = (item, index) => {
     const sizeText = item.size ? ` (${item.size === 'M' ? 'Medium' : 'Large'})` : '';
     const price = item.price ?? 0;
@@ -82,7 +158,15 @@ const OrderSummary = ({ items, subtotal, onRemoveItem, onUpdateQuantity, onSaveA
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Order Details</Text>
+      {isModal && (
+        <View style={styles.header}>
+          <Text style={styles.title}>Order Details</Text>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Text style={styles.closeButtonText}>X</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {!isModal && <Text style={styles.title}>Order Details</Text>}
       
       {/* Date and Time */}
       <View style={styles.dateContainer}>
@@ -162,8 +246,8 @@ const OrderSummary = ({ items, subtotal, onRemoveItem, onUpdateQuantity, onSaveA
           <TouchableOpacity
             style={[isModal ? styles.cancelButton : styles.saveButton]}
             onPress={() => {
-              if (isModal && typeof onClose === 'function') {
-                onClose();
+              if (isModal && typeof printReceipt === 'function') {
+                printReceipt();
               } else if (!isModal) {
                 onSaveAndPrint('save', calculateFinalTotal(), customerName, orderType, items, orderNumber);
                 onIncrementOrderNumber();
@@ -172,18 +256,7 @@ const OrderSummary = ({ items, subtotal, onRemoveItem, onUpdateQuantity, onSaveA
               }
             }}
           >
-            <Text style={[isModal ? styles.cancelButtonText : styles.saveButtonText]}>{isModal ? 'Close' : 'Save Order'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.printButton, (!items || items.length === 0) && styles.saveButtonDisabled]}
-            onPress={() => {
-              onSaveAndPrint('print', calculateFinalTotal(), customerName, orderType, items, orderNumber);
-              onIncrementOrderNumber();
-            }}
-            disabled={!items || items.length === 0}
-          >
-            <Text style={styles.printButtonText}>Print Order</Text>
+            <Text style={[isModal ? styles.cancelButtonText : styles.saveButtonText]}>{isModal ? 'Print Order' : 'Save Order'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -196,12 +269,31 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 15,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 15,
     textAlign: 'center',
+  },
+  closeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#ccc',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
   },
   dateContainer: {
     marginBottom: 10,
@@ -412,18 +504,6 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     gap: 10,
-  },
-  printButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    flex: 1,
-  },
-  printButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   cancelButton: {
     backgroundColor: '#ccc',

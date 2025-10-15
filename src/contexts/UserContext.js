@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getFirestore, collection, getDocs, query, orderBy, addDoc, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, orderBy, addDoc, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import app from '../database/firebaseConfig';
 
 const UserContext = createContext();
@@ -13,6 +13,51 @@ export const useUser = () => {
   return context;
 };
 
+const defaultMenuItems = [
+  { id: 1, name: 'Iced Americano', price: 49, category: 'coffee' },
+  { id: 2, name: 'Cloud Americano', price: 49, category: 'coffee' },
+  { id: 3, name: 'Spanish Latte', price: 59, category: 'coffee' },
+  { id: 4, name: 'Caramel Macchiato', price: 59, category: 'coffee' },
+  { id: 5, name: 'Vanilla Latte', price: 59, category: 'coffee' },
+  { id: 6, name: 'Iced Strawberry Milk', price: 49, category: 'coffee' },
+  { id: 7, name: 'Iced Blueberry Milk', price: 49, category: 'coffee' },
+  { id: 11, name: 'Lychee Soda', price: 49, category: 'coolers' },
+  { id: 12, name: 'Strawberry Soda', price: 49, category: 'coolers' },
+  { id: 13, name: 'Blueberry Soda', price: 49, category: 'coolers' },
+  { id: 14, name: 'Green Apple Soda', price: 49, category: 'coolers' },
+  { id: 15, name: 'Passion Fruit Soda', price: 49, category: 'coolers' },
+  { id: 16, name: 'Premium Lemonade', price: 59, category: 'coolers' },
+  { id: 17, name: 'Premium Lemonade w/ Yakult', price: 74, category: 'coolers' },
+  { id: 18, name: 'Alfonso', price: 499, category: 'alcohol' },
+  { id: 19, name: 'Boracay Cappuccino', price: 259, category: 'alcohol' },
+  { id: 20, name: 'Boracay Coconut', price: 259, category: 'alcohol' },
+  { id: 21, name: 'Cossack', price: 320, category: 'alcohol' },
+  { id: 22, name: 'Embassy', price: 299, category: 'alcohol' },
+  { id: 23, name: 'Emperador', price: 259, category: 'alcohol' },
+  { id: 24, name: 'Ginto', price: 259, category: 'alcohol' },
+  { id: 25, name: 'Mojito', price: 259, category: 'alcohol' },
+  { id: 26, name: 'Primera', price: 350, category: 'alcohol' },
+  { id: 27, name: 'Redhorse', price: 80, category: 'alcohol' },
+  { id: 28, name: 'Redhorse Bucket', price: 470, category: 'alcohol' },
+  { id: 29, name: 'San Miguel', price: 70, category: 'alcohol' },
+  { id: 30, name: 'San Miguel Bucket', price: 410, category: 'alcohol' },
+  { id: 31, name: 'Tanduay Dark', price: 269, category: 'alcohol' },
+  { id: 32, name: 'Tanduay Mixes', price: 259, category: 'alcohol' },
+  { id: 33, name: 'Tanduay Select', price: 259, category: 'alcohol' },
+  { id: 34, name: 'Tanduay White', price: 259, category: 'alcohol' },
+  { id: 35, name: 'Tower', price: 200, category: 'alcohol' },
+  { id: 36, name: 'Mani', price: 20, category: 'snacks' },
+  { id: 37, name: 'Kikiam', price: 50, category: 'snacks' },
+  { id: 38, name: 'Fishball', price: 50, category: 'snacks' },
+  { id: 39, name: 'Shanghai', price: 50, category: 'snacks' },
+  { id: 40, name: 'Siomai', price: 50, category: 'snacks' },
+  { id: 41, name: 'Fries', price: 50, category: 'snacks' },
+  { id: 42, name: 'Sisig', price: 130, category: 'snacks' },
+  { id: 43, name: 'Ramen Mild', price: 70, category: 'snacks' },
+  { id: 44, name: 'Ramen Spicy', price: 70, category: 'snacks' },
+  { id: 45, name: 'Buldak', price: 105, category: 'snacks' },
+];
+
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [orders, setOrders] = useState([]);
@@ -24,6 +69,9 @@ export const UserProvider = ({ children }) => {
   const db = getFirestore(app);
 
   useEffect(() => {
+    let menuUnsubscribe;
+    let inventoryUnsubscribe;
+
     const loadData = async () => {
       try {
         const storedUser = await AsyncStorage.getItem('user');
@@ -31,12 +79,12 @@ export const UserProvider = ({ children }) => {
           setUser(JSON.parse(storedUser));
         }
 
-        // Load menu items first to have names available
-        await loadMenuItems();
+        // Set up real-time listeners
+        menuUnsubscribe = loadMenuItems();
+        inventoryUnsubscribe = loadInventory();
 
-        // Load data from Firebase Firestore directly
+        // Load orders
         await loadOrders();
-        await loadInventory();
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -44,6 +92,16 @@ export const UserProvider = ({ children }) => {
       }
     };
     loadData();
+
+    // Cleanup function to unsubscribe from listeners
+    return () => {
+      if (menuUnsubscribe) {
+        menuUnsubscribe();
+      }
+      if (inventoryUnsubscribe) {
+        inventoryUnsubscribe();
+      }
+    };
   }, []);
 
   const login = async (userData) => {
@@ -101,34 +159,29 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // Load inventory from Firestore
-  const loadInventory = async () => {
-    try {
-      const inventoryCol = collection(db, 'inventory');
-      const querySnapshot = await getDocs(inventoryCol);
-      const inventoryData = [];
-      querySnapshot.forEach(doc => {
-        inventoryData.push({ id: doc.id, ...doc.data() });
-      });
+  // Load inventory from Firestore with real-time listener
+  const loadInventory = () => {
+    const inventoryCol = collection(db, 'inventory');
+    const unsubscribe = onSnapshot(inventoryCol, (querySnapshot) => {
+      const inventoryData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setInventory(inventoryData);
-    } catch (error) {
-      console.error('Error loading inventory from Firestore:', error);
-    }
+    }, (error) => {
+      console.error('Error listening to inventory from Firestore:', error);
+    });
+    return unsubscribe;
   };
 
-  // Load menu items from Firestore
-  const loadMenuItems = async () => {
-    try {
-      const menuCol = collection(db, 'menuItems');
-      const querySnapshot = await getDocs(menuCol);
-      const menuData = [];
-      querySnapshot.forEach(doc => {
-        menuData.push({ id: doc.id, ...doc.data() });
-      });
-      setMenuItems(menuData);
-    } catch (error) {
-      console.error('Error loading menu items from Firestore:', error);
-    }
+  // Load menu items from Firestore with real-time listener
+  const loadMenuItems = () => {
+    const inventoryCol = collection(db, 'inventory');
+    const unsubscribe = onSnapshot(inventoryCol, (querySnapshot) => {
+      const allItems = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const menuData = allItems.filter(item => item.type === 'menu');
+      setMenuItems(menuData); // Only menu items from inventory collection
+    }, (error) => {
+      console.error('Error listening to menu items from Firestore:', error);
+    });
+    return unsubscribe;
   };
 
   // Get max order number for the current day
@@ -227,7 +280,7 @@ export const UserProvider = ({ children }) => {
       }
 
       await loadOrders(); // Refresh orders after save
-      await loadInventory(); // Refresh inventory after deductions
+      // Inventory updates automatically via real-time listener
       return { success: true, orderId: docRef.id };
     } catch (error) {
       console.error('Error saving order to Firestore:', error);
@@ -252,18 +305,37 @@ export const UserProvider = ({ children }) => {
       addInventoryItem: async (item) => {
         try {
           const inventoryCol = collection(db, 'inventory');
-          const docRef = await addDoc(inventoryCol, {
-            name: item.name,
-            serving: item.serving,
-            category: item.category,
-            expiry_date: item.expiry_date,
-            unit: item.unit || 'pieces',
-            min_stock_level: item.min_stock_level || 10,
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          });
-          await loadInventory();
+          let docData;
+          if (item.type === 'menu') {
+            docData = {
+              name: item.name,
+              price: item.price,
+              category: item.category,
+              image: item.image,
+              type: 'menu',
+              isActive: true,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            };
+            if (item.size && item.size.trim() !== '') {
+              docData.size = item.size;
+            }
+          } else {
+            docData = {
+              name: item.name,
+              serving: item.serving,
+              category: item.category,
+              expiry_date: new Date(item.expiry_date),
+              unit: item.unit || 'pieces',
+              min_stock_level: item.min_stock_level || 10,
+              type: item.type || 'inventory',
+              isActive: true,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            };
+          }
+          const docRef = await addDoc(inventoryCol, docData);
+          // No need to refresh, real-time listener will update
           return { success: true, id: docRef.id };
         } catch (error) {
           console.error('Error adding inventory item:', error);
@@ -273,11 +345,15 @@ export const UserProvider = ({ children }) => {
       updateInventoryItem: async (id, updates) => {
         try {
           const docRef = doc(db, 'inventory', id);
+          const processedUpdates = { ...updates };
+          if (processedUpdates.expiry_date) {
+            processedUpdates.expiry_date = new Date(processedUpdates.expiry_date);
+          }
           await updateDoc(docRef, {
-            ...updates,
+            ...processedUpdates,
             updatedAt: new Date()
           });
-          await loadInventory();
+          // No need to refresh, real-time listener will update
           return { success: true };
         } catch (error) {
           console.error('Error updating inventory item:', error);
@@ -288,10 +364,35 @@ export const UserProvider = ({ children }) => {
         try {
           const docRef = doc(db, 'inventory', id);
           await deleteDoc(docRef);
-          await loadInventory();
+          // No need to refresh, real-time listener will update
           return { success: true };
         } catch (error) {
           console.error('Error deleting inventory item:', error);
+          return { success: false, error };
+        }
+      },
+      deleteMenuItem: async (id) => {
+        try {
+          const docRef = doc(db, 'inventory', id);
+          await deleteDoc(docRef);
+          // No need to refresh, real-time listener will update
+          return { success: true };
+        } catch (error) {
+          console.error('Error deleting menu item:', error);
+          return { success: false, error };
+        }
+      },
+      updateMenuItem: async (id, updates) => {
+        try {
+          const docRef = doc(db, 'inventory', id);
+          await updateDoc(docRef, {
+            ...updates,
+            updatedAt: new Date()
+          });
+          // No need to refresh, real-time listener will update
+          return { success: true };
+        } catch (error) {
+          console.error('Error updating menu item:', error);
           return { success: false, error };
         }
       }

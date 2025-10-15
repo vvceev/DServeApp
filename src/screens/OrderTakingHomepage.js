@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   Image,
-  FlatList,
+  ScrollView,
   Dimensions,
   TextInput,
 } from 'react-native';
@@ -20,6 +20,7 @@ import app from '../database/firebaseConfig';
 
 const OrderTakingHomepage = ({ navigation }) => {
   const db = getFirestore(app);
+  const { inventory: contextInventory, saveOrder, user, menuItems } = useUser();
 
   const [selectedItems, setSelectedItems] = useState([]);
   const [subtotal, setSubtotal] = useState(0);
@@ -32,16 +33,13 @@ const OrderTakingHomepage = ({ navigation }) => {
   ]);
 
   const [orderNumber, setOrderNumber] = useState(1);
-  const [menuItems, setMenuItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const [inventoryItems, setInventoryItems] = useState([]);
 
   useEffect(() => {
     const loadOrderNumber = async () => {
       try {
-        const currentDate = new Date().toISOString().split('T')[0];
+        const currentDate = new Date().toLocaleDateString('en-CA');
         const storedDate = await AsyncStorage.getItem('lastOrderDate');
         if (storedDate !== currentDate) {
           setOrderNumber(1);
@@ -60,43 +58,13 @@ const OrderTakingHomepage = ({ navigation }) => {
     loadOrderNumber();
   }, []);
 
-  useEffect(() => {
-    const fetchMenuItems = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, 'newMenuItems'));
-        const items = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          return { id: doc.id, price: parseFloat(data.price), isNew: true, ...data };
-        });
-        setMenuItems(items);
-      } catch (err) {
-        setError('Failed to load menu items');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMenuItems();
-  }, []);
 
-  useEffect(() => {
-    const fetchInventoryItems = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, 'inventory'));
-        const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setInventoryItems(items);
-      } catch (err) {
-        console.error('Failed to load inventory items', err);
-      }
-    };
-    fetchInventoryItems();
-  }, []);
 
   const incrementOrderNumber = async () => {
     setOrderNumber(prev => {
       const newNum = prev + 1;
       AsyncStorage.setItem('orderNumber', newNum.toString());
-      const currentDate = new Date().toISOString().split('T')[0];
+      const currentDate = new Date().toLocaleDateString('en-CA');
       AsyncStorage.setItem('lastOrderDate', currentDate);
       return newNum;
     });
@@ -161,13 +129,13 @@ const OrderTakingHomepage = ({ navigation }) => {
     { id: 45, name: 'Buldak', price: 105, image: require('../../assets/app_images/snacks/Buldak.png'), category: 'snacks' },
   ];
 
-  // Combine default items with Firebase items (Firebase items are added on top of defaults)
-  const effectiveMenuItems = [...defaultMenuItems, ...menuItems];
+  // Combine default menu items with dynamically added menu items
+  const effectiveMenuItems = [...defaultMenuItems, ...(menuItems || [])];
 
   // Merge menu items with inventory data for real stock levels
   const menuItemsWithInventory = effectiveMenuItems.map(menuItem => {
     // Find matching inventory item by name
-    const inventoryItem = inventoryItems.find(invItem =>
+    const inventoryItem = contextInventory.find(invItem =>
       invItem.name.toLowerCase() === menuItem.name.toLowerCase()
     );
 
@@ -244,7 +212,7 @@ const OrderTakingHomepage = ({ navigation }) => {
 
     // Check if item is from coffee or coolers category or is a newMenuItem and has size selected
     const isSizeApplicable = ((selectedCategory === 'coffee' || selectedCategory === 'coolers') || item.isNew) && selectedSizes[item.id];
-    const adjustedPrice = isSizeApplicable ? item.price + sizePriceIncrease[selectedSizes[item.id]] : item.price;
+    const adjustedPrice = isSizeApplicable ? parseFloat(item.price) + sizePriceIncrease[selectedSizes[item.id]] : parseFloat(item.price);
 
     if (existingItem) {
       const updatedItems = selectedItems.map(selected =>
@@ -285,8 +253,6 @@ const OrderTakingHomepage = ({ navigation }) => {
     const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     setSubtotal(total);
   };
-
-  const { saveOrder } = useUser();
 
   const handleSaveAndPrint = async (action, finalTotal, customerName, orderType, items, orderNumber) => {
     console.log('handleSaveAndPrint called with items:', items);
@@ -372,7 +338,7 @@ const OrderTakingHomepage = ({ navigation }) => {
   const renderMenuItem = ({ item }) => {
     // Calculate display price based on selected size for coffee, coolers, or newMenuItems
     const isSizeApplicable = ((selectedCategory === 'coffee' || selectedCategory === 'coolers') || item.isNew) && selectedSizes[item.id];
-    const displayPrice = isSizeApplicable ? item.price + sizePriceIncrease[selectedSizes[item.id]] : item.price;
+    const displayPrice = isSizeApplicable ? parseFloat(item.price) + sizePriceIncrease[selectedSizes[item.id]] : parseFloat(item.price);
 
     // Stock logic
     const stock = item.stock !== undefined ? item.stock : 999; // Assume unlimited if no stock field
@@ -380,7 +346,7 @@ const OrderTakingHomepage = ({ navigation }) => {
     const isLowStock = stock > 0 && stock <= 10;
 
     return (
-      <View style={[styles.menuItemCard, isSmallScreen && styles.menuItemCardSmall]}>
+      <View key={item.id} style={[styles.menuItemCard, isSmallScreen && styles.menuItemCardSmall]}>
         <View style={styles.imageContainer}>
           <Image
             source={typeof item.image === 'string' ? { uri: item.image } : item.image}
@@ -463,10 +429,10 @@ const OrderTakingHomepage = ({ navigation }) => {
       ]}
       onPress={() => setSelectedCategory(category.key)}
     >
-      <Icon 
-        name={category.icon} 
-        size={24} 
-        color={selectedCategory === category.key ? '#FF6B35' : '#666'} 
+      <Icon
+        name={category.icon}
+        size={24}
+        color={selectedCategory === category.key ? '#FF6B35' : '#666'}
       />
       <Text style={[
         styles.tabText,
@@ -476,8 +442,6 @@ const OrderTakingHomepage = ({ navigation }) => {
       </Text>
     </TouchableOpacity>
   );
-
-  const { user } = useUser();
 
   return (
     <SafeAreaView style={styles.container}>
@@ -520,14 +484,9 @@ const OrderTakingHomepage = ({ navigation }) => {
 
           {/* Menu Grid */}
           {!loading && !error && (
-            <FlatList
-              data={getFilteredItems()}
-              renderItem={renderMenuItem}
-              keyExtractor={(item) => item.id.toString()}
-              numColumns={isSmallScreen ? 3 : 5}
-              contentContainerStyle={styles.menuGrid}
-              showsVerticalScrollIndicator={false}
-            />
+            <ScrollView contentContainerStyle={styles.menuGrid} showsVerticalScrollIndicator={false}>
+              {getFilteredItems().map((item) => renderMenuItem({ item }))}
+            </ScrollView>
           )}
         </View>
 
@@ -637,15 +596,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   menuGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 8,
     paddingVertical: 8,
+    justifyContent: 'center',
   },
   menuItemCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 10,
     margin: 4,
-    width: '18%',
+    width: '20%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -655,7 +617,7 @@ const styles = StyleSheet.create({
     aspectRatio: 0.85,
   },
   menuItemCardSmall: {
-    width: '30%',
+    width: '32%',
   },
   itemImage: {
     width: '100%',

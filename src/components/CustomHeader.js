@@ -6,6 +6,7 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  FlatList,
   Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -29,10 +30,11 @@ const CustomHeader = ({ activeScreen, hasNotifications = false }) => {
   const allNavigationItems = [
     { name: 'Dashboard', icon: 'home', screen: 'Dashboard' },
     { name: 'Sales Report', icon: 'bar-chart', screen: 'SalesReport' },
-    { name: 'Menu Setup', icon: 'restaurant-menu', screen: 'MenuManagement' },
     { name: 'Inventory', icon: 'inventory', screen: 'Inventory' },
     { name: 'Orders', icon: 'assignment', screen: 'OrderManagement' },
     { name: 'Order Taking', icon: 'shopping-cart', screen: 'OrderTaking' },
+    { name: 'Activity Logs', icon: 'history', screen: 'ActivityLogs' },
+
   ];
 
   const getAllowedNavigationItems = () => {
@@ -160,25 +162,31 @@ const CustomHeader = ({ activeScreen, hasNotifications = false }) => {
                     </Text>
                   </TouchableOpacity>
                 </View>
-                {notifications
-                  .filter((notification) => filter === 'all' || notification.type === filter)
-                  .map((notification) => (
-                    <View key={notification.id} style={styles.notificationItem}>
+                <FlatList
+                  data={notifications.filter((notification) => filter === 'all' || notification.type === filter)}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <View style={styles.notificationItem}>
                       <Ionicons name="warning" size={16} color="#FFA500" />
                       <View style={styles.notificationContent}>
-                        <Text style={styles.notificationText}>{notification.message}</Text>
+                        <Text style={styles.notificationText}>{item.message}</Text>
                         <Text style={styles.notificationTime}>
-                          {new Date(notification.timestamp).toLocaleString()}
+                          {new Date(item.timestamp).toLocaleString()}
                         </Text>
                       </View>
                       <TouchableOpacity
                         style={styles.dismissButton}
-                        onPress={() => dismissNotification(notification.id)}
+                        onPress={() => dismissNotification(item.id)}
                       >
                         <Ionicons name="close" size={16} color="#666" />
                       </TouchableOpacity>
                     </View>
-                  ))}
+                  )}
+                  style={styles.notificationsScrollView}
+                  showsVerticalScrollIndicator={true}
+                  scrollEnabled={true}
+                  pointerEvents="auto"
+                />
                 <TouchableOpacity style={styles.closeButton} onPress={() => setShowDropdown(false)}>
                   <Text style={styles.closeText}>Close</Text>
                 </TouchableOpacity>
@@ -303,11 +311,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     width: 250,
+    maxHeight: 300,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
+    zIndex: 1000,
   },
   dropdownTitle: {
     fontSize: 16,
@@ -370,6 +380,10 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontSize: 14,
   },
+  notificationsScrollView: {
+    flex: 1,
+  },
+
 });
 
 export default CustomHeader;

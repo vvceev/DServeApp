@@ -17,8 +17,12 @@ const { width } = Dimensions.get('window');
 
 const SalesReportScreen = () => {
   const { orders, loadOrders, isLoading } = useUser();
-  const [timeRange, setTimeRange] = useState('weekly');
+  const [timeRange, setTimeRange] = useState('monthly');
+  const [subFilter, setSubFilter] = useState('daily');
   const [selectedDate, setSelectedDate] = useState('');
+  const [selectedWeek, setSelectedWeek] = useState('');
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [weekOptions, setWeekOptions] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
@@ -30,7 +34,44 @@ const SalesReportScreen = () => {
 
   useEffect(() => {
     filterAndCalculateMetrics();
-  }, [orders, timeRange, selectedDate]);
+  }, [orders, timeRange, selectedDate, subFilter, selectedWeek, selectedYear]);
+
+  useEffect(() => {
+    if (timeRange === 'monthly' && subFilter === 'weekly') {
+      generateWeekOptions();
+    }
+  }, [timeRange, subFilter]);
+
+  const generateWeekOptions = () => {
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+    const weeks = [];
+    let currentWeekStart = new Date(startDate);
+
+    // Adjust to start of week (Sunday)
+    const dayOfWeek = currentWeekStart.getDay();
+    currentWeekStart.setDate(currentWeekStart.getDate() - dayOfWeek);
+
+    while (currentWeekStart <= now) {
+      const weekEnd = new Date(currentWeekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      const weekLabel = `${currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      weeks.push({
+        label: weekLabel,
+        start: new Date(currentWeekStart),
+        end: new Date(weekEnd),
+        value: currentWeekStart.toISOString().split('T')[0]
+      });
+
+      currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+    }
+
+    setWeekOptions(weeks);
+    if (weeks.length > 0 && !selectedWeek) {
+      setSelectedWeek(weeks[0].value);
+    }
+  };
 
   const filterAndCalculateMetrics = () => {
     if (!orders || orders.length === 0) {
@@ -45,28 +86,35 @@ const SalesReportScreen = () => {
     let startDate;
 
     switch (timeRange) {
-      case 'weekly':
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-        break;
       case 'monthly':
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
         break;
-      case 'year':
-        startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      case 'yearly':
+        startDate = new Date(selectedYear, 0, 1); // January 1st of selected year
         break;
       default:
         startDate = new Date(0);
     }
 
-    // Filter orders by time range and selected date if any
+    // Filter orders by time range, selected date, or selected week if any
     const filtered = orders.filter(order => {
       const orderDate = new Date(order.date);
       if (selectedDate) {
         // Filter by selected date only
         return orderDate.toISOString().split('T')[0] === selectedDate;
+      } else if (selectedWeek && timeRange === 'monthly' && subFilter === 'weekly') {
+        // Filter by selected week
+        const weekStart = new Date(selectedWeek);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        return orderDate >= weekStart && orderDate <= weekEnd;
       } else {
         // Filter by time range
-        return orderDate >= startDate && orderDate <= now;
+        if (timeRange === 'yearly') {
+          return orderDate.getFullYear() === selectedYear;
+        } else {
+          return orderDate >= startDate && orderDate <= now;
+        }
       }
     });
 
@@ -111,34 +159,38 @@ const SalesReportScreen = () => {
     let data = [];
 
     switch (timeRange) {
-      case 'weekly':
-        // Last 7 days
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-          const dateStr = date.toISOString().split('T')[0];
-          const daySales = filteredOrders
-            .filter(order => new Date(order.date).toISOString().split('T')[0] === dateStr)
-            .reduce((sum, order) => sum + (order.total || 0), 0);
-          labels.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
-          data.push(daySales);
-        }
-        break;
       case 'monthly':
-        // Last 30 days
-        for (let i = 29; i >= 0; i--) {
-          const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-          const dateStr = date.toISOString().split('T')[0];
-          const daySales = filteredOrders
-            .filter(order => new Date(order.date).toISOString().split('T')[0] === dateStr)
-            .reduce((sum, order) => sum + (order.total || 0), 0);
-          labels.push(date.getDate().toString());
-          data.push(daySales);
+        if (subFilter === 'daily') {
+          // Last 30 days
+          for (let i = 29; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            const daySales = filteredOrders
+              .filter(order => new Date(order.date).toISOString().split('T')[0] === dateStr)
+              .reduce((sum, order) => sum + (order.total || 0), 0);
+            labels.push(date.getDate().toString());
+            data.push(daySales);
+          }
+        } else if (subFilter === 'weekly') {
+          // Last 4 weeks
+          for (let i = 3; i >= 0; i--) {
+            const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (i * 7) - 6);
+            const weekEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (i * 7));
+            const weekSales = filteredOrders
+              .filter(order => {
+                const orderDate = new Date(order.date);
+                return orderDate >= weekStart && orderDate <= weekEnd;
+              })
+              .reduce((sum, order) => sum + (order.total || 0), 0);
+            labels.push(`W${4 - i}`);
+            data.push(weekSales);
+          }
         }
         break;
-      case 'year':
-        // Last 12 months
-        for (let i = 11; i >= 0; i--) {
-          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      case 'yearly':
+        // Months of the selected year
+        for (let i = 0; i < 12; i++) {
+          const date = new Date(selectedYear, i, 1);
           const monthStr = date.toISOString().slice(0, 7); // YYYY-MM
           const monthSales = filteredOrders
             .filter(order => new Date(order.date).toISOString().slice(0, 7) === monthStr)
@@ -155,7 +207,7 @@ const SalesReportScreen = () => {
       labels,
       datasets: [{
         data,
-        color: (opacity = 1) => `rgba(52, 152, 219, ${opacity})`,
+        color: (opacity = 1) => `rgba(255, 107, 53, ${opacity})`,
         strokeWidth: 2
       }]
     };
@@ -190,7 +242,7 @@ const SalesReportScreen = () => {
         {/* Time Range Controls */}
         <View style={styles.controlsContainer}>
           <View style={styles.timeRangeContainer}>
-            {['weekly', 'monthly', 'year'].map((range) => (
+            {['monthly', 'yearly'].map((range) => (
               <TouchableOpacity
                 key={range}
                 style={[
@@ -200,6 +252,9 @@ const SalesReportScreen = () => {
                 onPress={() => {
                   setTimeRange(range);
                   setSelectedDate('');
+                  if (range === 'monthly') {
+                    setSubFilter('daily');
+                  }
                 }}
               >
                 <Text
@@ -213,6 +268,34 @@ const SalesReportScreen = () => {
               </TouchableOpacity>
             ))}
           </View>
+          {timeRange === 'monthly' && (
+            <View style={styles.subFilterContainer}>
+              {['daily', 'weekly'].map((filter) => (
+                <TouchableOpacity
+                  key={filter}
+                  style={[
+                    styles.subFilterButton,
+                    subFilter === filter && styles.activeSubFilterButton,
+                  ]}
+                  onPress={() => {
+                    setSubFilter(filter);
+                    if (filter === 'weekly') {
+                      generateWeekOptions();
+                    }
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.subFilterButtonText,
+                      subFilter === filter && styles.activeSubFilterButtonText,
+                    ]}
+                  >
+                    {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Main Card Container */}
@@ -237,39 +320,91 @@ const SalesReportScreen = () => {
                   />
                 )}
               </View>
-            <View style={styles.calendarContainer}>
-              <Text style={styles.calendarTitle}>Calendar</Text>
-              <Calendar
-                onDayPress={day => setSelectedDate(day.dateString)}
-                markedDates={{
-                  [selectedDate]: { selected: true, selectedColor: '#3498db' }
-                }}
-                theme={{
-                  backgroundColor: '#f8f9fa',
-                  calendarBackground: '#f8f9fa',
-                  textSectionTitleColor: '#2c3e50',
-                  selectedDayBackgroundColor: '#3498db',
-                  selectedDayTextColor: 'white',
-                  todayTextColor: '#3498db',
-                  dayTextColor: '#495057',
-                  textDisabledColor: '#d9e1e8',
-                  dotColor: '#3498db',
-                  selectedDotColor: 'white',
-                  arrowColor: '#3498db',
-                  monthTextColor: '#2c3e50',
-                  indicatorColor: '#3498db',
-                  textDayFontFamily: 'monospace',
-                  textMonthFontFamily: 'monospace',
-                  textDayHeaderFontFamily: 'monospace',
-                  textDayFontWeight: '300',
-                  textMonthFontWeight: 'bold',
-                  textDayHeaderFontWeight: '300',
-                  textDayFontSize: 14,
-                  textMonthFontSize: 16,
-                  textDayHeaderFontSize: 12
-                }}
-              />
-            </View>
+            {timeRange === 'monthly' && subFilter === 'weekly' ? (
+              <View style={styles.calendarContainer}>
+                <Text style={styles.calendarTitle}>Select Week</Text>
+                <View style={styles.weekOptionsContainer}>
+                  {weekOptions.map((week) => (
+                    <TouchableOpacity
+                      key={week.value}
+                      style={[
+                        styles.weekOptionButton,
+                        selectedWeek === week.value && styles.activeWeekOptionButton,
+                      ]}
+                      onPress={() => setSelectedWeek(week.value)}
+                    >
+                      <Text
+                        style={[
+                          styles.weekOptionText,
+                          selectedWeek === week.value && styles.activeWeekOptionText,
+                        ]}
+                      >
+                        {week.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ) : timeRange === 'yearly' ? (
+              <View style={styles.calendarContainer}>
+                <Text style={styles.calendarTitle}>Select Year</Text>
+                <View style={styles.yearOptionsContainer}>
+                  {[2023, 2024, 2025, 2026, 2027].map((year) => (
+                    <TouchableOpacity
+                      key={year}
+                      style={[
+                        styles.yearOptionButton,
+                        selectedYear === year && styles.activeYearOptionButton,
+                      ]}
+                      onPress={() => setSelectedYear(year)}
+                    >
+                      <Text
+                        style={[
+                          styles.yearOptionText,
+                          selectedYear === year && styles.activeYearOptionText,
+                        ]}
+                      >
+                        {year}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ) : (
+              <View style={styles.calendarContainer}>
+                <Text style={styles.calendarTitle}>Calendar</Text>
+                <Calendar
+                  onDayPress={day => setSelectedDate(day.dateString)}
+                  markedDates={{
+                    [selectedDate]: { selected: true, selectedColor: '#3498db' }
+                  }}
+                  theme={{
+                    backgroundColor: '#f8f9fa',
+                    calendarBackground: '#f8f9fa',
+                    textSectionTitleColor: '#2c3e50',
+                    selectedDayBackgroundColor: '#3498db',
+                    selectedDayTextColor: 'white',
+                    todayTextColor: '#3498db',
+                    dayTextColor: '#495057',
+                    textDisabledColor: '#d9e1e8',
+                    dotColor: '#3498db',
+                    selectedDotColor: 'white',
+                    arrowColor: '#FF6B35',
+                    monthTextColor: '#2c3e50',
+                    indicatorColor: '#3498db',
+                    textDayFontFamily: 'monospace',
+                    textMonthFontFamily: 'monospace',
+                    textDayHeaderFontFamily: 'monospace',
+                    textDayFontWeight: '300',
+                    textMonthFontWeight: 'bold',
+                    textDayHeaderFontWeight: '300',
+                    textDayFontSize: 14,
+                    textMonthFontSize: 16,
+                    textDayHeaderFontSize: 12
+                  }}
+                />
+              </View>
+            )}
           </View>
 
           {/* Right Side - Metrics */}
@@ -324,7 +459,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: '#FF6B35',
     marginBottom: 5,
   },
   subtitle: {
@@ -352,11 +487,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   activeRangeButton: {
-    backgroundColor: '#3498db',
+    backgroundColor: '#FF6B35',
   },
   rangeButtonText: {
     fontSize: 13,
-    color: '#7f8c8d',
+    color: '#FF6B35',
     fontWeight: '500',
   },
   activeRangeButtonText: {
@@ -377,7 +512,7 @@ const styles = StyleSheet.create({
   },
   chartSection: {
     flexDirection: 'row',
-    height: 200,
+    height: 220,
   },
   chartContainer: {
     flex: 1,
@@ -389,14 +524,14 @@ const styles = StyleSheet.create({
   calendarTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: '#FF6B35',
     marginBottom: 10,
   },
 
   chartTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: '#FF6B35',
     marginBottom: 15,
   },
   chartPlaceholder: {
@@ -411,7 +546,7 @@ const styles = StyleSheet.create({
   chartText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#495057',
+    color: '#FF6B35',
   },
   chartSubtitle: {
     fontSize: 12,
@@ -463,12 +598,12 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: '#FF6B35',
   },
   biggerMetricValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2c3e50',
+    color: '#FF6B35',
   },
   topItemsList: {
     marginTop: 5,
@@ -481,6 +616,100 @@ const styles = StyleSheet.create({
   },
   chartStyle: {
     borderRadius: 16,
+  },
+  subFilterContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#ecf0f1',
+    borderRadius: 25,
+    padding: 4,
+    marginTop: 10,
+  },
+  subFilterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginHorizontal: 2,
+  },
+  activeSubFilterButton: {
+    backgroundColor: '#FF6B35',
+  },
+  subFilterButtonText: {
+    fontSize: 13,
+    color: '#7f8c8d',
+    fontWeight: '500',
+  },
+  activeSubFilterButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  weekSelectorContainer: {
+    marginTop: 15,
+    alignItems: 'center',
+  },
+  weekSelectorLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FF6B35',
+    marginBottom: 10,
+  },
+  weekOptionsScroll: {
+    maxHeight: 50,
+  },
+  weekOptionButton: {
+    backgroundColor: '#ecf0f1',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 15,
+    marginHorizontal: 5,
+    marginVertical: 5,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  activeWeekOptionButton: {
+    backgroundColor: '#FF6B35',
+  },
+  weekOptionText: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    fontWeight: '500',
+  },
+  activeWeekOptionText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  weekOptionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  yearOptionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  yearOptionButton: {
+    backgroundColor: '#ecf0f1',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 15,
+    marginHorizontal: 5,
+    marginVertical: 5,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  activeYearOptionButton: {
+    backgroundColor: '#FF6B35',
+  },
+  yearOptionText: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    fontWeight: '500',
+  },
+  activeYearOptionText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 

@@ -43,9 +43,10 @@ const usersData = [
 ];
 
 const inventoryData = [
+  // Coffee items
   {
     id: '1',
-    name: 'Caramel Macchiato',
+    name: 'Iced Americano',
     category: 'coffee',
     serving: 50,
     expiryDate: new Date('2024-12-31'),
@@ -53,15 +54,15 @@ const inventoryData = [
   },
   {
     id: '2',
-    name: 'Mild Buldak',
-    category: 'snacks',
-    serving: 30,
-    expiryDate: new Date('2024-05-15'),
+    name: 'Cloud Americano',
+    category: 'coffee',
+    serving: 45,
+    expiryDate: new Date('2024-12-31'),
     isActive: true
   },
   {
     id: '3',
-    name: 'Iced Americano',
+    name: 'Spanish Latte',
     category: 'coffee',
     serving: 40,
     expiryDate: new Date('2024-12-31'),
@@ -69,18 +70,317 @@ const inventoryData = [
   },
   {
     id: '4',
-    name: 'Blueberry Soda',
-    category: 'coolers',
-    serving: 25,
-    expiryDate: new Date('2024-06-30'),
+    name: 'Caramel Macchiato',
+    category: 'coffee',
+    serving: 35,
+    expiryDate: new Date('2024-12-31'),
     isActive: true
   },
   {
     id: '5',
-    name: 'Red Horse',
+    name: 'Vanilla Latte',
+    category: 'coffee',
+    serving: 30,
+    expiryDate: new Date('2024-12-31'),
+    isActive: true
+  },
+  {
+    id: '6',
+    name: 'Iced Strawberry Milk',
+    category: 'coffee',
+    serving: 25,
+    expiryDate: new Date('2024-12-31'),
+    isActive: true
+  },
+  {
+    id: '7',
+    name: 'Iced Blueberry Milk',
+    category: 'coffee',
+    serving: 20,
+    expiryDate: new Date('2024-12-31'),
+    isActive: true
+  },
+  // Coolers
+  {
+    id: '8',
+    name: 'Lychee Soda',
+    category: 'coolers',
+    serving: 60,
+    expiryDate: new Date('2024-06-30'),
+    isActive: true
+  },
+  {
+    id: '9',
+    name: 'Strawberry Soda',
+    category: 'coolers',
+    serving: 55,
+    expiryDate: new Date('2024-06-30'),
+    isActive: true
+  },
+  {
+    id: '10',
+    name: 'Blueberry Soda',
+    category: 'coolers',
+    serving: 50,
+    expiryDate: new Date('2024-06-30'),
+    isActive: true
+  },
+  {
+    id: '11',
+    name: 'Green Apple Soda',
+    category: 'coolers',
+    serving: 45,
+    expiryDate: new Date('2024-06-30'),
+    isActive: true
+  },
+  {
+    id: '12',
+    name: 'Passion Fruit Soda',
+    category: 'coolers',
+    serving: 40,
+    expiryDate: new Date('2024-06-30'),
+    isActive: true
+  },
+  {
+    id: '13',
+    name: 'Premium Lemonade',
+    category: 'coolers',
+    serving: 35,
+    expiryDate: new Date('2024-06-30'),
+    isActive: true
+  },
+  {
+    id: '14',
+    name: 'Premium Lemonade w/ Yakult',
+    category: 'coolers',
+    serving: 30,
+    expiryDate: new Date('2024-06-30'),
+    isActive: true
+  },
+  // Alcohol
+  {
+    id: '15',
+    name: 'Alfonso',
+    category: 'alcohol',
+    serving: 10,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '16',
+    name: 'Boracay Cappuccino',
+    category: 'alcohol',
+    serving: 15,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '17',
+    name: 'Boracay Coconut',
+    category: 'alcohol',
+    serving: 12,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '18',
+    name: 'Cossack',
+    category: 'alcohol',
+    serving: 8,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '19',
+    name: 'Embassy',
+    category: 'alcohol',
+    serving: 14,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '20',
+    name: 'Emperador',
+    category: 'alcohol',
+    serving: 16,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '21',
+    name: 'Ginto',
+    category: 'alcohol',
+    serving: 18,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '22',
+    name: 'Mojito',
     category: 'alcohol',
     serving: 20,
     expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '23',
+    name: 'Primera',
+    category: 'alcohol',
+    serving: 6,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '24',
+    name: 'Redhorse',
+    category: 'alcohol',
+    serving: 25,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '25',
+    name: 'Redhorse Bucket',
+    category: 'alcohol',
+    serving: 5,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '26',
+    name: 'San Miguel',
+    category: 'alcohol',
+    serving: 22,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '27',
+    name: 'San Miguel Bucket',
+    category: 'alcohol',
+    serving: 7,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '28',
+    name: 'Tanduay Dark',
+    category: 'alcohol',
+    serving: 19,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '29',
+    name: 'Tanduay Mixes',
+    category: 'alcohol',
+    serving: 21,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '30',
+    name: 'Tanduay Select',
+    category: 'alcohol',
+    serving: 17,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '31',
+    name: 'Tanduay White',
+    category: 'alcohol',
+    serving: 23,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  {
+    id: '32',
+    name: 'Tower',
+    category: 'alcohol',
+    serving: 9,
+    expiryDate: new Date('2025-01-31'),
+    isActive: true
+  },
+  // Snacks
+  {
+    id: '33',
+    name: 'Mani',
+    category: 'snacks',
+    serving: 100,
+    expiryDate: new Date('2024-05-15'),
+    isActive: true
+  },
+  {
+    id: '34',
+    name: 'Kikiam',
+    category: 'snacks',
+    serving: 80,
+    expiryDate: new Date('2024-05-15'),
+    isActive: true
+  },
+  {
+    id: '35',
+    name: 'Fishball',
+    category: 'snacks',
+    serving: 75,
+    expiryDate: new Date('2024-05-15'),
+    isActive: true
+  },
+  {
+    id: '36',
+    name: 'Shanghai',
+    category: 'snacks',
+    serving: 70,
+    expiryDate: new Date('2024-05-15'),
+    isActive: true
+  },
+  {
+    id: '37',
+    name: 'Siomai',
+    category: 'snacks',
+    serving: 65,
+    expiryDate: new Date('2024-05-15'),
+    isActive: true
+  },
+  {
+    id: '38',
+    name: 'Fries',
+    category: 'snacks',
+    serving: 60,
+    expiryDate: new Date('2024-05-15'),
+    isActive: true
+  },
+  {
+    id: '39',
+    name: 'Sisig',
+    category: 'snacks',
+    serving: 55,
+    expiryDate: new Date('2024-05-15'),
+    isActive: true
+  },
+  {
+    id: '40',
+    name: 'Ramen Mild',
+    category: 'snacks',
+    serving: 50,
+    expiryDate: new Date('2024-05-15'),
+    isActive: true
+  },
+  {
+    id: '41',
+    name: 'Ramen Spicy',
+    category: 'snacks',
+    serving: 45,
+    expiryDate: new Date('2024-05-15'),
+    isActive: true
+  },
+  {
+    id: '42',
+    name: 'Buldak',
+    category: 'snacks',
+    serving: 40,
+    expiryDate: new Date('2024-05-15'),
     isActive: true
   }
 ];

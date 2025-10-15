@@ -5,12 +5,12 @@ import CustomHeader from '../components/CustomHeader';
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import InventoryScreen from '../screens/InventoryScreen';
-import MenuManagementScreen from '../screens/MenuManagementScreen';
+
 import OrderManagementScreen from '../screens/OrderManagementScreen';
-import SalesBillingScreen from '../screens/SalesBillingScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import SalesReportScreen from '../screens/SalesReportScreen';
 import OrderTakingHomepage from '../screens/OrderTakingHomepage';
+import ActivityLogsScreen from '../screens/ActivityLogsScreen';
 import { useUser } from '../contexts/UserContext';
 
 const Stack = createStackNavigator();
@@ -44,24 +44,10 @@ const AppNavigator = () => {
           }}
         />
         <Stack.Screen
-          name="MenuManagement"
-          component={MenuManagementScreen}
-          options={{
-            header: () => <CustomHeader activeScreen="MenuManagement" />,
-          }}
-        />
-        <Stack.Screen
           name="OrderManagement"
           component={OrderManagementScreen}
           options={{
             header: () => <CustomHeader activeScreen="OrderManagement" />,
-          }}
-        />
-        <Stack.Screen
-          name="SalesBilling"
-          component={SalesBillingScreen}
-          options={{
-            header: () => <CustomHeader activeScreen="SalesBilling" />,
           }}
         />
         <Stack.Screen
@@ -83,6 +69,13 @@ const AppNavigator = () => {
           component={SalesReportScreen}
           options={{
             header: () => <CustomHeader activeScreen="SalesReport" />,
+          }}
+        />
+        <Stack.Screen
+          name="ActivityLogs"
+          component={ActivityLogsScreen}
+          options={{
+            header: () => <CustomHeader activeScreen="ActivityLogs" />,
           }}
         />
       </Stack.Navigator>

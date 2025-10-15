@@ -12,42 +12,43 @@ export const useNotification = () => {
 };
 
 export const NotificationProvider = ({ children }) => {
-  const { inventory } = useUser();
+  const { inventory, menuItems } = useUser();
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    if (inventory && inventory.length > 0) {
+    const allItems = inventory || [];
+    if (allItems.length > 0) {
       const newNotifications = [];
 
-      // Low stock notifications (serving < min_stock_level)
-      const lowStockItems = inventory.filter(item =>
-        parseFloat(item.serving) < parseFloat(item.min_stock_level || 10)
+      // Low stock notifications (serving < 11)
+      const lowStockItems = allItems.filter(item =>
+        item.serving && parseFloat(item.serving) < 11
       );
       lowStockItems.forEach(item => {
         newNotifications.push({
           id: `low-${item.id}`,
           type: 'low_stock',
-          message: `${item.name} is running low (${item.serving} remaining)`,
+          message: `${item.name} (serving: ${item.serving}) is running low`,
           itemId: item.id,
           timestamp: new Date().toISOString(),
         });
       });
 
-      // Expiry notifications (7 days before expiry)
-      const expiringItems = inventory.filter(item => {
+      // Expiry notifications (3 days before expiry)
+      const expiringItems = allItems.filter(item => {
         if (!item.expiry_date) return false;
         const today = new Date();
-        const expiry = new Date(item.expiry_date);
+        const expiry = item.expiry_date.toDate ? item.expiry_date.toDate() : new Date(item.expiry_date);
         const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-        return daysUntilExpiry <= 7 && daysUntilExpiry >= 0;
+        return daysUntilExpiry <= 3 && daysUntilExpiry >= 0;
       });
       expiringItems.forEach(item => {
-        const expiry = new Date(item.expiry_date);
+        const expiry = item.expiry_date.toDate ? item.expiry_date.toDate() : new Date(item.expiry_date);
         const daysLeft = Math.ceil((expiry - new Date()) / (1000 * 60 * 60 * 24));
         newNotifications.push({
           id: `expiry-${item.id}`,
           type: 'expiry',
-          message: `${item.name} expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`,
+          message: `${item.name} (serving: ${item.serving || 'N/A'}) expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`,
           itemId: item.id,
           timestamp: new Date().toISOString(),
         });
@@ -57,7 +58,7 @@ export const NotificationProvider = ({ children }) => {
     } else {
       setNotifications([]);
     }
-  }, [inventory]);
+  }, [inventory, menuItems]);
 
   const addNotification = (notification) => {
     setNotifications((prev) => [...prev, notification]);
