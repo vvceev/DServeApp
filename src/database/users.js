@@ -1,9 +1,7 @@
 // Firebase client SDK
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
-import app from './firebaseConfig';
-
-// Initialize Firebase
-const db = getFirestore(app);
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from './firebaseConfig';
 
 // User database with pre-made accounts
 const users = [
@@ -54,17 +52,32 @@ export const getUsersByRole = (role) => {
 };
 
 // Authentication function
-export const authenticateUser = (username, password) => {
-  const user = getUserByUsername(username);
-  if (!user) {
-    console.log('User not found:', username);
-    return null;
+export const authenticateUser = async (username, password) => {
+  try {
+    // For demo purposes, we'll use email-based auth with username@domain.com format
+    const email = `${username}@dserveapp.com`;
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+    // Get user data from our local users array
+    const user = getUserByUsername(username);
+    if (!user) {
+      console.log('User not found:', username);
+      return null;
+    }
+
+    return user;
+  } catch (error) {
+    console.error('Firebase auth error:', error);
+    // Fallback to local authentication for demo
+    const user = getUserByUsername(username);
+    if (!user) {
+      console.log('User not found:', username);
+      return null;
+    }
+
+    const validPassword = password === user.password;
+    return validPassword ? user : null;
   }
-
-  // Since passwords are stored in plain text here, compare directly
-  const validPassword = password === user.password;
-
-  return validPassword ? user : null;
 };
 
 // Login tracking

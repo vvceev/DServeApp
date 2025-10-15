@@ -5,9 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Calendar } from 'react-native-calendars';
 import { LineChart } from 'react-native-chart-kit';

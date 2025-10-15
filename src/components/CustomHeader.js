@@ -4,11 +4,11 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   FlatList,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/MaterialIcons';

@@ -5,11 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TextInput,
   Modal,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Picker } from '@react-native-picker/picker';

@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getFirestore, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import app from '../database/firebaseConfig';
 

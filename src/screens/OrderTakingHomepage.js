@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Alert,
   Image,
@@ -12,6 +11,7 @@ import {
   Dimensions,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import OrderSummary from '../components/OrderSummary';

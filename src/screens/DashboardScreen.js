@@ -2,9 +2,9 @@ import React from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const DashboardScreen = () => {
   return (

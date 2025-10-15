@@ -7,7 +7,6 @@ import DashboardScreen from '../screens/DashboardScreen';
 import InventoryScreen from '../screens/InventoryScreen';
 
 import OrderManagementScreen from '../screens/OrderManagementScreen';
-import AnalyticsScreen from '../screens/AnalyticsScreen';
 import SalesReportScreen from '../screens/SalesReportScreen';
 import OrderTakingHomepage from '../screens/OrderTakingHomepage';
 import ActivityLogsScreen from '../screens/ActivityLogsScreen';
@@ -18,8 +17,6 @@ const Stack = createStackNavigator();
 const AppNavigator = () => {
   const navigationRef = useRef(null);
   const { user, isLoading } = useUser();
-
-  // Removed auto-navigation to Dashboard to ensure login screen shows
 
   return (
     <NavigationContainer ref={navigationRef}>
@@ -48,13 +45,6 @@ const AppNavigator = () => {
           component={OrderManagementScreen}
           options={{
             header: () => <CustomHeader activeScreen="OrderManagement" />,
-          }}
-        />
-        <Stack.Screen
-          name="Analytics"
-          component={AnalyticsScreen}
-          options={{
-            header: () => <CustomHeader activeScreen="Analytics" />,
           }}
         />
         <Stack.Screen
